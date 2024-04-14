@@ -24,6 +24,37 @@ def affine_relu_forward(x, w, b):
     cache = (fc_cache, relu_cache)
     return out, cache
 
+def affine_norm_relu_forward(x, w, b, gamma, beta, bn_params, normalization):
+    """
+    Convenience/"sandwich"/helper layer that combines multiple operations into commonly used patterns.
+    Performs affine - batch/layer norm - relu.
+    Inputs:
+    - x: Input to the affine layer
+    - w, b: Weights for the affine layer
+    - gamma, beta: Batchnorm/Layernorm learnable params
+    - bn_params: Batchnorm/Layernorm params
+    - normalization: Are we using Batchnorm or Layernorm?
+    Returns a tuple of:
+    - out: Output from the ReLU
+    - cache: Tuple containing the cache of each layer to give to the backward pass
+
+    """
+
+    fc_cache, bn_cache, relu_cache = None, None, None
+
+    # affine layer
+    out, fc_cache = affine_forward(x, w, b)
+
+    # batch/layer norm
+    if normalization == 'batchnorm':
+        out, bn_cache = batchnorm_forward(out, gamma, beta, bn_params)
+    elif normalization == 'layernorm':
+        out, bn_cache = layernorm_forward(out, gamma, beta, bn_params)
+
+        # relu
+    out, relu_cache = relu_forward(out)
+
+    return out, (fc_cache, bn_cache, relu_cache)
 
 def affine_relu_backward(dout, cache):
     """
@@ -34,6 +65,27 @@ def affine_relu_backward(dout, cache):
     dx, dw, db = affine_backward(da, fc_cache)
     return dx, dw, db
 
+def affine_norm_relu_backward(dout, cache, normalization):
+    """
+    Backward pass for the affine - batch/layer norm - relu convenience layer.
+    """
+
+    fc_cache, bn_cache, relu_cache = cache
+
+    # relu
+    dout = relu_backward(dout, relu_cache)
+
+    # batch/layer norm
+    dgamma, dbeta = None, None
+    if normalization == 'batchnorm':
+        dout, dgamma, dbeta = batchnorm_backward_alt(dout, bn_cache)
+    elif normalization == 'layernorm':
+        dout, dgamma, dbeta = layernorm_backward(dout, bn_cache)
+
+    # affine layer
+    dx, dw, db = affine_backward(dout, fc_cache)
+
+    return dx, dw, db, dgamma, dbeta
 
 def conv_relu_forward(x, w, b, conv_param):
     """

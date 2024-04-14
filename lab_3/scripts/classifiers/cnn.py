@@ -63,7 +63,35 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        C_in, H_in, W_in = input_dim
+        F_conv = num_filters
+        H_conv = filter_size
+        W_conv = filter_size
+        D_aff  = hidden_dim
+        C_out  = num_classes
+        weight_scale = weight_scale
+        
+        layer_num = 1
+        W_str = 'W' + str(layer_num)
+        b_str = 'b' + str(layer_num)
+
+        self.params[W_str] = np.random.normal(0.0, weight_scale, size=(F_conv, C_in, H_conv, W_conv))
+        self.params[b_str] = np.zeros(F_conv)
+        
+
+        layer_num += 1
+        W_str = 'W' + str(layer_num)
+        b_str = 'b' + str(layer_num)
+        
+        self.params[W_str] = np.random.normal(0.0, weight_scale, size=(int(F_conv*(H_in/2)*(W_in/2)), D_aff))
+        self.params[b_str] = np.zeros(D_aff)
+
+        layer_num += 1
+        W_str = 'W' + str(layer_num)
+        b_str = 'b' + str(layer_num)
+
+        self.params[W_str] = np.random.normal(0.0, weight_scale, size=(D_aff, C_out))
+        self.params[b_str] = np.zeros(C_out)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -102,7 +130,25 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        X = X.astype(self.dtype)
+        self.caches = []
+
+        out, cache = conv_forward_fast(X, W1, b1, conv_param)
+        self.caches.append(cache)
+        out, cache = relu_forward(out)
+        self.caches.append(cache)
+        out, cache = max_pool_forward_fast(out, pool_param)
+        self.caches.append(cache)
+        
+        out, cache = affine_forward(out, W2, b2)
+        self.caches.append(cache)
+        out, cache = relu_forward(out)
+        self.caches.append(cache)
+        
+        out, cache = affine_forward(out, W3, b3)
+        self.caches.append(cache)
+        
+        scores = out
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -125,7 +171,29 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dscores = softmax_loss(scores, y)
+        for i in range(3) :
+            W_str = 'W' + str(i+1)
+            loss += 0.5 * self.reg * np.sum(self.params[W_str]**2)
+        
+        W_str = 'W' + str(3)
+        b_str = 'b' + str(3)
+        dout, grads[W_str], grads[b_str] = affine_backward(dscores, self.caches[5])
+
+        W_str = 'W' + str(2)
+        b_str = 'b' + str(2)
+        dout = relu_backward(dout, self.caches[4])
+        dout, grads[W_str], grads[b_str] = affine_backward(dout, self.caches[3])
+
+        W_str = 'W' + str(1)
+        b_str = 'b' + str(1)
+        dout = max_pool_backward_fast(dout, self.caches[2])
+        dout = relu_backward(dout, self.caches[1])
+        dout, grads[W_str], grads[b_str] = conv_backward_fast(dout, self.caches[0])
+
+        for i in range(3) :
+            W_str = 'W' + str(i+1)
+            grads[W_str] += self.reg * self.params[W_str]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
